@@ -1,0 +1,29 @@
+services:
+  app:
+    build: .
+    container_name: movie-app
+    env_file:
+      - app/.env
+    ports:
+      - "5000:5000"
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+      - ./hold_seats.lua:/usr/src/app/hold_seats.lua
+    command: ["python", "app/app.py"]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    container_name: movie-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  redis_data:
