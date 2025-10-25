@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["DOM", "DOM.Iterable", "ES2020","ESNext"],
+    "types": ["vite/client", "vitest", "node", "vitest/globals"],
+    "skipLibCheck": true,
+    // Optional for using Vitest
+  },
+  "include": ["src", "vite-env.d.ts"]
+}

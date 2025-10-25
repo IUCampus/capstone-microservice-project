@@ -2,9 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Capstone_Movie_Microservice.iml" filepath="$PROJECT_DIR$/.idea/Capstone_Movie_Microservice.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../DevOps_Capstone_Project/api-gateway/src/main/main.iml" filepath="$PROJECT_DIR$/../DevOps_Capstone_Project/api-gateway/src/main/main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../DevOps_Capstone_Project/api-gateway/src/test/test.iml" filepath="$PROJECT_DIR$/../DevOps_Capstone_Project/api-gateway/src/test/test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Capstone-microservice-project.iml" filepath="$PROJECT_DIR$/.idea/Capstone-microservice-project.iml" />
     </modules>
   </component>
 </project>
