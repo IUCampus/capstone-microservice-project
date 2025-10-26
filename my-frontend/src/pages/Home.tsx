@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import axios from 'axios'
+import React, { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import {
   Box,
   Container,
@@ -19,129 +19,114 @@ import {
   ToggleButton,
   Alert,
   Divider,
-  Grid
-} from '@mui/material'
-import SearchIcon from '@mui/icons-material/Search'
-import RefreshIcon from '@mui/icons-material/Refresh'
-import SortByAlphaIcon from '@mui/icons-material/SortByAlpha'
-import StarRateIcon from '@mui/icons-material/StarRate'
-import AccessTimeIcon from '@mui/icons-material/AccessTime'
-import { Link } from 'react-router-dom'
-
-type Movie = {
-  id: string | number
-  title?: string
-  posterUrl?: string
-  runtime?: number
-  genres?: string[]
-  rating?: number
-  synopsis?: string
-  [key: string]: unknown
-}
-
-type SortKey = 'title' | 'rating' | 'runtime'
+  Grid,
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import SortByAlphaIcon from '@mui/icons-material/SortByAlpha';
+import StarRateIcon from '@mui/icons-material/StarRate';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import { Link } from 'react-router-dom';
 
 // Load all images from /src/assets/img using Vite's glob import
 const posters = import.meta.glob('../assets/img/**/*.{png,jpg,jpeg,webp,svg,PNG,JPG,JPEG,WEBP,SVG}', {
   eager: true,
   as: 'url',
-}) as Record<string, string>
+});
 
-function getPosterUrl(movie: Movie): string {
-  const src = String(movie.posterUrl ?? '').trim()
+function getPosterUrl(movie: any): string {
+  const src = String(movie.posterUrl ?? '').trim();
 
   // Absolute or data/blob URLs
-  if (/^(https?:|data:|blob:)/i.test(src)) return src
+  if (/^(https?:|data:|blob:)/i.test(src)) return src;
 
   // Try exact relative/path match (case-insensitive)
-  const exact = Object.entries(posters).find(([p]) => p.toLowerCase().endsWith(src.toLowerCase()))
-  if (exact) return exact[1]
+  const exact = Object.entries(posters).find(([p]) => p.toLowerCase().endsWith(src.toLowerCase()));
+  if (exact) return exact[1] as string;
 
   // Try by filename only
-  const file = src.split('/').pop()
+  const file = src.split('/').pop();
   if (file) {
-    const byFile = Object.entries(posters).find(([p]) => p.toLowerCase().endsWith(file.toLowerCase()))
-    if (byFile) return byFile[1]
+    const byFile = Object.entries(posters).find(([p]) => p.toLowerCase().endsWith(file.toLowerCase()));
+    if (byFile) return byFile[1] as string;
   }
 
   // Try by movie id with common extensions
-  const idStr = String(movie.id)
-  const exts = ['jpg', 'jpeg', 'png', 'webp', 'svg']
+  const idStr = String(movie.id);
+  const exts = ['jpg', 'jpeg', 'png', 'webp', 'svg'];
   for (const ext of exts) {
     const found = Object.entries(posters).find(([p]) =>
       p.toLowerCase().endsWith(`/${idStr.toLowerCase()}.${ext}`),
-    )
-    if (found) return found[1]
+    );
+    if (found) return found[1] as string;
   }
 
-  return ''
+  return '';
 }
 
 export default function Home() {
-  const [movies, setMovies] = useState<Movie[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const [query, setQuery] = useState<string>('')
-  const [sortKey, setSortKey] = useState<SortKey>('title')
-  const [reloadTick, setReloadTick] = useState(0)
+  const [movies, setMovies] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState<string>('');
+  const [sortKey, setSortKey] = useState<'title' | 'rating' | 'runtime'>('title');
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
-    const controller = new AbortController()
-    let isActive = true
+    const controller = new AbortController();
+    let isActive = true;
 
     const fetchMovies = async () => {
       try {
-        setLoading(true)
-        setError(null)
-
-        const res = await axios.get('http://localhost:5000/movies/all', { signal: controller.signal })
-        const data = Array.isArray(res.data) ? res.data : res.data?.movies ?? []
-
+        setLoading(true);
+        setError(null);
+        const res = await axios.get('http://localhost:5000/movies/all', { signal: controller.signal });
+        const data = Array.isArray(res.data) ? res.data : res.data?.movies ?? [];
         if (isActive) {
-          setMovies(data as Movie[])
+          setMovies(data);
         }
-      } catch (err: unknown) {
-        if (axios.isCancel(err)) return
+      } catch (err) {
+        if (axios.isCancel(err)) return;
         if (isActive) {
-          console.error(err)
-          setError('Failed to load movies.')
+          console.error(err);
+          setError('Failed to load movies.');
         }
       } finally {
-        if (isActive) setLoading(false)
+        if (isActive) setLoading(false);
       }
-    }
+    };
 
-    fetchMovies()
+    fetchMovies();
     return () => {
-      isActive = false
-      controller.abort()
-    }
-  }, [reloadTick])
+      isActive = false;
+      controller.abort();
+    };
+  }, [reloadTick]);
 
-  const handleRetry = () => setReloadTick((t) => t + 1)
+  const handleRetry = () => setReloadTick((t) => t + 1);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return movies
-    return movies.filter((m) => (m.title ?? '').toString().toLowerCase().includes(q))
-  }, [movies, query])
+    const q = query.trim().toLowerCase();
+    if (!q) return movies;
+    return movies.filter((m) => (m.title ?? '').toString().toLowerCase().includes(q));
+  }, [movies, query]);
 
   const sorted = useMemo(() => {
-    const arr = [...filtered]
+    const arr = [...filtered];
     switch (sortKey) {
       case 'rating':
-        arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
-        break
+        arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+        break;
       case 'runtime':
-        arr.sort((a, b) => (b.runtime ?? 0) - (a.runtime ?? 0))
-        break
+        arr.sort((a, b) => (b.runtime ?? 0) - (a.runtime ?? 0));
+        break;
       default:
-        arr.sort((a, b) => String(a.title ?? '').localeCompare(String(b.title ?? '')))
+        arr.sort((a, b) => String(a.title ?? '').localeCompare(String(b.title ?? '')));
     }
-    return arr
-  }, [filtered, sortKey])
+    return arr;
+  }, [filtered, sortKey]);
 
-  const hasData = sorted.length > 0
+  const hasData = sorted.length > 0;
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -177,7 +162,7 @@ export default function Home() {
             size="small"
             value={sortKey}
             exclusive
-            onChange={(_, v: SortKey | null) => v && setSortKey(v)}
+            onChange={(_, v) => v && setSortKey(v)}
             aria-label="Sort movies"
           >
             <ToggleButton value="title" aria-label="Sort by title">
@@ -238,16 +223,16 @@ export default function Home() {
         </Grid>
       ) : hasData ? (
         <Grid container spacing={3}>
-          {sorted.map((movie) => {
-            const title = movie.title ?? 'Untitled'
-            const poster = getPosterUrl(movie)
-            const runtime = movie.runtime ? `${movie.runtime} min` : undefined
+          {sorted.map((movie: any) => {
+            const title = movie.title ?? 'Untitled';
+            const poster = getPosterUrl(movie);
+            const runtime = movie.runtime ? `${movie.runtime} min` : undefined;
             const rating =
               typeof movie.rating === 'number' && Number.isFinite(movie.rating)
                 ? movie.rating.toFixed(1)
-                : undefined
-            const genres = Array.isArray(movie.genres) ? (movie.genres as string[]) : []
-            const to = `/screenings/${movie.id}`
+                : undefined;
+            const genres = Array.isArray(movie.genres) ? movie.genres : [];
+            const to = `/screenings/${movie.id}`;
 
             return (
               <Grid key={String(movie.id)} >
@@ -262,13 +247,7 @@ export default function Home() {
                   elevation={2}
                 >
                   {poster ? (
-                    <CardMedia
-                      component="img"
-                      height="220"
-                      image={poster}
-                      alt={`Poster for ${title}`}
-                      sx={{ objectFit: 'cover' }}
-                    />
+                    <CardMedia image={poster} sx={{ height: 220, objectFit: 'cover' }} />
                   ) : (
                     <Box
                       height={220}
@@ -312,7 +291,7 @@ export default function Home() {
                     </Stack>
 
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                      {genres.slice(0, 3).map((g) => (
+                      {genres.slice(0, 3).map((g: string) => (
                         <Chip key={g} size="small" label={g} variant="outlined" />
                       ))}
                     </Stack>
@@ -337,24 +316,24 @@ export default function Home() {
                   </CardContent>
 
                   <CardActions sx={{ px: 2, pb: 2 }}>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      component={Link}
-                      to={to}
-                      disableElevation
-                      sx={{ textTransform: 'none', fontWeight: 700 }}
-                    >
-                      Select Seats
-                    </Button>
+                    <Link to={to} style={{ textDecoration: 'none', width: '100%' }}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        disableElevation
+                        sx={{ textTransform: 'none', fontWeight: 700 }}
+                      >
+                        Select Seats
+                      </Button>
+                    </Link>
                   </CardActions>
                 </Card>
               </Grid>
-            )
+            );
           })}
         </Grid>
       ) : (
-        <Box sx={{ py: 8, textAlign: 'center', color: 'text.secondary' }}>
+        <Box sx={{ py: 8, textAlign: 'center,', color: 'text.secondary' }}>
           <Typography variant="h6" gutterBottom>
             No movies available
           </Typography>
@@ -367,5 +346,5 @@ export default function Home() {
         </Box>
       )}
     </Container>
-  )
+  );
 }
