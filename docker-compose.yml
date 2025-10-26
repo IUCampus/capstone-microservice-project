@@ -1,4 +1,19 @@
+version: '3.8'
+
 services:
+  my-frontend:
+    build:
+      context: ./my-frontend
+      dockerfile: Dockerfile
+      target: dev
+    ports:
+      - "5173:5173"
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - frontend-network
+
   app:
     build: .
     container_name: movie-app
@@ -10,9 +25,11 @@ services:
       - redis
     volumes:
       - .:/app
-      - ./hold_seats.lua:/usr/src/app/hold_seats.lua
+      # If you need this file inside /app, mount it there instead:
+      # - ./hold_seats.lua:/app/hold_seats.lua
     command: ["python", "app/app.py"]
     restart: unless-stopped
+    stop_grace_period: 60s
 
   redis:
     image: redis:7
@@ -25,5 +42,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  mongo_data:
   redis_data:
+
+networks:
+  frontend-network:
+    driver: bridge

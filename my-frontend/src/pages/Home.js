@@ -52,7 +52,7 @@ export default function Home() {
             try {
                 setLoading(true);
                 setError(null);
-                const res = await axios.get('/api/movies/all', { signal: controller.signal });
+                const res = await axios.get('http://localhost:5000/movies/all', { signal: controller.signal });
                 const data = Array.isArray(res.data) ? res.data : res.data?.movies ?? [];
                 if (isActive) {
                     setMovies(data);

@@ -17,13 +17,14 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient, } from '@tanstack/react-query';
 import { useAuthStore } from '../store/auth';
+// Define Zod schemas for validation
 const profileSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters').max(80, 'Name is too long'),
     phone: z
         .string()
         .trim()
         .optional()
-        .refine((v) => !v || /^[+()\d\s.-]{7,20}$/.test(v), 'Enter a valid phone number or leave empty'),
+        .refine((v) => !v || /^\+?\d[\d\s.-]{7,20}$/.test(v), 'Enter a valid phone number or leave empty'),
     emailNotifications: z.boolean().default(true),
 });
 const passwordSchema = z
@@ -41,6 +42,7 @@ const passwordSchema = z
     path: ['confirmNewPassword'],
     message: 'Passwords do not match',
 });
+// Fetch user data and handle authentication headers
 function useAuthHeaders() {
     const token = useAuthStore((s) => s.token);
     return React.useMemo(() => ({
@@ -49,28 +51,26 @@ function useAuthHeaders() {
     }), [token]);
 }
 async function fetchMe(config) {
-    const res = await axios.get(`http://localhost:5000/me`, config);
+    const res = await axios.get(`http://localhost:5000/users/me`, config);
     return res.data;
 }
 async function updateMe(payload, config) {
-    const res = await axios.patch(`http://localhost:5000/me`, payload, config);
+    const res = await axios.patch(`http://localhost:5000/users/me`, payload, config);
     return res.data;
 }
 async function uploadAvatar(file, config) {
     const form = new FormData();
     form.append('avatar', file);
-    const res = await axios.post(`http://localhost:5000/me/avatar`, form, {
+    const res = await axios.post(`http://localhost:5000/users/me/avatar`, form, {
         ...config,
-        headers: {
-            ...config.headers,
-            'Content-Type': 'multipart/form-data',
-        },
+        headers: { ...config.headers, 'Content-Type': 'multipart/form-data' },
     });
     return res.data;
 }
 async function changePassword(payload, config) {
-    await axios.post(`http://localhost:5000/me/password`, payload, config);
+    await axios.post(`http://localhost:5000/users/me/password`, payload, config);
 }
+// Main ProfileContent component
 function ProfileContent() {
     const { enqueueSnackbar } = useSnackbar();
     const navigate = useNavigate();
@@ -82,7 +82,6 @@ function ProfileContent() {
         queryFn: () => fetchMe(authConfig),
         staleTime: 60000,
     });
-    // @ts-ignore
     const { register, handleSubmit, reset, formState: { errors, isDirty, isSubmitting }, watch, setValue, } = useForm({
         //resolver: zodResolver(profileSchema),
         defaultValues: {
@@ -148,10 +147,12 @@ function ProfileContent() {
         resolver: zodResolver(passwordSchema),
         mode: 'onTouched',
     });
-    const onChangePassword = (values) => passwordMutation.mutateAsync({
+    const onChangePassword = (values) => passwordMutation
+        .mutateAsync({
         currentPassword: values.currentPassword,
         newPassword: values.newPassword,
-    }).then(() => resetPw());
+    })
+        .then(() => resetPw());
     const fileInputRef = React.useRef(null);
     const onPickAvatar = () => fileInputRef.current?.click();
     const onAvatarSelected = (e) => {
@@ -195,18 +196,16 @@ function ProfileContent() {
                 React.createElement(Typography, { variant: "body2", color: "text.secondary", sx: { mb: 2 } }, "Please try again."),
                 React.createElement(Button, { variant: "contained", onClick: () => refetch() }, "Retry"))));
     }
-    const initials = data.name?.trim()
+    const initials = (data.name ?? '')
+        .trim()
         .split(/\s+/)
         .slice(0, 2)
         .map((s) => s[0]?.toUpperCase())
-        .join('') || data.email[0]?.toUpperCase() || '?';
-    // @ts-ignore
+        .filter(Boolean)
+        .join('') || data.email?.[0]?.toUpperCase() || '?';
     return (React.createElement(Container, { maxWidth: "md", sx: { py: 4 } },
         React.createElement(Stack, { spacing: 3 },
-            React.createElement(Paper, { variant: "outlined", sx: {
-                    p: 3,
-                    borderRadius: 2,
-                } },
+            React.createElement(Paper, { variant: "outlined", sx: { p: 3, borderRadius: 2 } },
                 React.createElement(Stack, { direction: { xs: 'column', sm: 'row' }, spacing: 3, alignItems: "center" },
                     React.createElement(Badge, { overlap: "circular", anchorOrigin: { vertical: 'bottom', horizontal: 'right' }, badgeContent: React.createElement(Tooltip, { title: "Change avatar" },
                             React.createElement(IconButton, { color: "primary", size: "small", sx: {
@@ -219,9 +218,9 @@ function ProfileContent() {
                     React.createElement(Box, { flex: 1, minWidth: 0 },
                         React.createElement(Typography, { variant: "h6", noWrap: true }, data.name || 'Your name'),
                         React.createElement(Typography, { variant: "body2", color: "text.secondary", noWrap: true }, data.email),
-                        data.createdAt ? (React.createElement(Typography, { variant: "caption", color: "text.secondary" },
+                        data.createdAt && (React.createElement(Typography, { variant: "caption", color: "text.secondary" },
                             "Member since ",
-                            new Date(data.createdAt).toLocaleDateString())) : null),
+                            new Date(data.createdAt).toLocaleDateString()))),
                     React.createElement(Stack, { direction: "row", spacing: 1 },
                         React.createElement(Button, { variant: "outlined", color: "inherit", startIcon: React.createElement(LogoutIcon, null), onClick: handleLogout }, "Sign out")))),
             React.createElement(Paper, { variant: "outlined", sx: { p: 3, borderRadius: 2 } },

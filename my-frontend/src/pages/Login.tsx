@@ -28,7 +28,7 @@ type LoginFormInputs = {
 
 async function handleLogin(email: string, password: string) {
 
-  const res = await axios.post<LoginResponse>('/api/users/login', { email, password })
+  const res = await axios.post<LoginResponse>('http://localhost:5000/users/login', { email, password })
   const { access_token, refresh_token, user } = res.data ?? {}
 
   if (!access_token) {

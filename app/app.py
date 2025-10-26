@@ -1,7 +1,17 @@
 import os
-from flask import Flask, jsonify, request, make_response
+import sys
+import socket
+import subprocess
+import threading
+import time
+import io
+from pathlib import Path
+from typing import Optional
+import shutil
+
 from dotenv import load_dotenv
-from flask_cors import CORS  # Imported if you plan to enable CORS globally
+from flask import Flask, jsonify, request, make_response
+from flask_cors import CORS
 
 from common import init_db_and_redis, ensure_indexes_db
 
@@ -14,9 +24,13 @@ from blueprints.reviews import reviews_bp
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "config.example"))
 
+# Add this near the top-level (after imports)
+START_FRONTEND = os.getenv("START_FRONTEND", "1") == "1"
+
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}}, supports_credentials=True)
 
     # load config into app.config for convenience
     app.config["HOLD_TTL_SECONDS"] = int(os.environ.get("HOLD_TTL_SECONDS", 600))
@@ -60,6 +74,99 @@ def create_app() -> Flask:
     return app
 
 
+VITE_PORT = 5173
+
+
+def is_port_open(host: str, port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.2)
+        return sock.connect_ex((host, port)) == 0
+
+
+def _stream_output(prefix: str, stream: io.TextIOBase) -> None:
+    for line in iter(stream.readline, ""):
+        sys.stdout.write(f"{prefix} {line}")
+    stream.close()
+
+
+def start_frontend_if_needed() -> Optional[subprocess.Popen[str]]:
+    # Resolve my-frontend directory relative to this file:
+    project_root = Path(__file__).resolve().parents[1]
+    frontend_dir = project_root / "my-frontend"
+
+    if not frontend_dir.exists():
+        print(f"[vite] Skipping: directory not found: {frontend_dir}")
+        return None
+
+    if not START_FRONTEND:
+        print("[vite] Auto-start disabled via START_FRONTEND=0")
+        return None
+
+    if is_port_open("127.0.0.1", VITE_PORT):
+        print(
+            f"[vite] Port {VITE_PORT} already in use. Assuming Vite is running; not spawning a new process."
+        )
+        return None
+
+    env = os.environ.copy()
+    env.setdefault("FORCE_COLOR", "1")
+
+    npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
+    npm_path = shutil.which(npm_cmd)
+
+    if not npm_path:
+        # Don’t crash the backend in containers; just log and continue
+        print("[vite] npm not found on PATH. Skipping auto-start. Start the frontend manually.")
+        return None
+
+    cmd = [npm_path, "run", "dev", "--", f"--port={VITE_PORT}"]
+
+    proc = subprocess.Popen(
+        cmd,
+        cwd=frontend_dir,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+
+    if proc.stdout:
+        t = threading.Thread(target=_stream_output, args=("[vite]", proc.stdout), daemon=True)
+        t.start()
+
+    for _ in range(60):
+        if is_port_open("127.0.0.1", VITE_PORT):
+            print(f"[vite] Dev server is up on http://localhost:{VITE_PORT}")
+            break
+        time.sleep(0.1)
+
+    return proc
+
+
+def stop_frontend(proc: Optional[subprocess.Popen[str]]) -> None:
+    if not proc:
+        return
+    print("[vite] Stopping dev server...")
+    try:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+    except Exception as e:
+        print(f"[vite] Error stopping dev server: {e}")
+
+
 if __name__ == "__main__":
-    application = create_app()
-    application.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+    vite_proc: Optional[subprocess.Popen[str]] = None
+    try:
+        # Start Vite first (non-blocking)
+        vite_proc = start_frontend_if_needed()
+
+        # Then run your backend
+        application = create_app()
+        application.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        stop_frontend(vite_proc)

@@ -9,3 +9,4 @@ werkzeug
 pytest
 fakeredis
 mongomock
+flask_cors
